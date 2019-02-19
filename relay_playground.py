@@ -3,8 +3,10 @@ import time
 
 GPIO.setmode(GPIO.BCM) # GPIO Numbers instead of board numbers
  
-relayControl_GPIO = [14,15]
-delayTime=0.5
+# relayControl_GPIO = [14,15]
+relayControl_GPIO = 14
+timeOn=10
+timeOff=2
 loops=10
 
 try:
@@ -13,9 +15,9 @@ try:
 		print str(loop)
 		GPIO.output(relayControl_GPIO, GPIO.LOW) # out
 		GPIO.output(relayControl_GPIO, GPIO.HIGH) # on
-		time.sleep(delayTime)
+		time.sleep(timeOn)
 		GPIO.output(relayControl_GPIO, GPIO.LOW) # out
-		time.sleep(delayTime)
+		time.sleep(timeOff)
 except:
 	print '\nExited on loop '+str(loop)
 finally:
