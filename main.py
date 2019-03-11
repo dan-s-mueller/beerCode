@@ -17,6 +17,7 @@ def read_config_file(config_file):
 			configs=configs+[line]
 	return configs
 
+# Log file information
 logging.basicConfig(level=logging.DEBUG)
 logger=logging.getLogger(__name__)
 handler=logging.FileHandler(os.getcwd()+"/"+
@@ -36,7 +37,6 @@ temperature_settings=read_config_file(temperature_config_file)
 
 # Assign pinouts to relays
 logger.info("Assigning pinouts to relays")
-# relayControl_GPIO = [14,15]
 for idx,pinout in enumerate(pinout_data):
 	if pinout[1]=="relay_cool":
 		relay_cool=pinout[0]
