@@ -92,3 +92,5 @@ while True:
 		GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
 		logging.debug("Fermenter is in the happy zone, everything's off.")
 		time.sleep(time_interval)
+
+need to add error handling and link up with the sql database
