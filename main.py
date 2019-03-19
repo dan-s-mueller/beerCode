@@ -5,7 +5,9 @@ import glob
 import logging
 import RPi.GPIO as GPIO
 import temperature_probe
-
+import mysql.connector
+import record_SQL_data
+	
 def read_config_file(config_file):
 	# Standard function to read in config files.
 	with open(config_file,"r") as file:
@@ -16,6 +18,10 @@ def read_config_file(config_file):
 			line[0]=int(line[0])
 			configs=configs+[line]
 	return configs
+	
+# Configs
+time_interval=5
+brewID=0
 
 # Log file information
 logging.basicConfig(level=logging.DEBUG)
@@ -25,8 +31,14 @@ handler=logging.FileHandler(os.getcwd()+"/"+
 handler.setLevel(logging.INFO)
 logger.addHandler(handler)
 
-# Assign constants that shouldn't be changed often.
-time_interval=2
+# Mysql startup info
+mydb=mysql.connector.connect(
+  host="localhost",
+  user="dmueller",
+  passwd="Spartan1",
+  database="beerCode"
+)
+mycursor=mydb.cursor()
 
 # Read config file settings to establish run parameters.
 logger.info("Reading config file data")
@@ -69,28 +81,43 @@ GPIO.output([relay_cool,relay_hot], GPIO.LOW) # Initialize all pinouts to off
 
 # Run main code to check temperature and operate heating/cooling
 logger.info("Running main code...")
-while True:
-	temperature_chamber=temperature_probe.read_temp()
-	logger.info("Current time: "+str(datetime.datetime.now()))
-	logger.info("Current temperature: "+str(temperature_chamber))
-	logger.info("Tempearture between setpoints: "+
-					str(temperature_chamber>setpoint_low and temperature_chamber<=setpoint_high))
-	if temperature_chamber<=(setpoint_low+trigger_cool):
-			GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
-			GPIO.output(relay_hot, GPIO.HIGH) # Turn on heater
-			logger.debug("Chamber heating now. Resolving difference of "+
-				str(setpoint_low+trigger_cool-temperature_chamber)+" deg F")
+fout=open(datetime.datetime.now().strftime('temp_log_%H_%M_%d_%m_%Y.csv'),'w')
+fout.write('time,temperature_air,temperature_liquid')
+fout.write('\n')
+try:
+	while True:
+		timeNow=datetime.datetime.now()
+		temperature_air=temperature_probe.read_temp(0)
+		temperature_liquid=temperature_probe.read_temp(1)
+		logger.info("Current time: "+str(timeNow))
+		logger.info("Current liquid temperature: "+str(temperature_liquid))
+		logger.info("Current outside temperature: "+str(temperature_air))
+		logger.info("Tempearture between setpoints: "+
+						str(temperature_liquid>setpoint_low and temperature_liquid<=setpoint_high))
+		
+		# record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid)
+		fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid))
+		fout.write('\n')
+		
+		if temperature_liquid<=(setpoint_low+trigger_cool):
+				GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
+				GPIO.output(relay_hot, GPIO.HIGH) # Turn on heater
+				logger.debug("Chamber heating now. Resolving difference of "+
+					str(setpoint_low+trigger_cool-temperature_liquid)+" deg F")
+				time.sleep(time_interval)
+		elif temperature_liquid>=(setpoint_high+trigger_hot):
+			GPIO.output(relay_cool, GPIO.HIGH) # Turn on cooler
+			GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
+			logging.debug("Chamber cooling now. Resolving difference of "+
+				str(setpoint_high+trigger_hot-temperature_liquid)+" deg F")
 			time.sleep(time_interval)
-	elif temperature_chamber>=(setpoint_high+trigger_hot):
-		GPIO.output(relay_cool, GPIO.HIGH) # Turn on cooler
-		GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
-		logging.debug("Chamber cooling now. Resolving difference of "+
-			str(setpoint_high+trigger_hot-temperature_chamber)+" deg F")
-		time.sleep(time_interval)
-	else:
-		GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
-		GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
-		logging.debug("Fermenter is in the happy zone, everything's off.")
-		time.sleep(time_interval)
-
-need to add error handling and link up with the sql database
+		else:
+			GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
+			GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
+			logging.debug("Fermenter is in the happy zone, everything's off.")
+			time.sleep(time_interval)
+finally:
+	fout.close()
+	mydb.close()
+	GPIO.cleanup()
+	print('Program ended, files closed.')

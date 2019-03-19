@@ -20,6 +20,7 @@ handler=logging.FileHandler(os.getcwd()+"/"+
 handler.setLevel(logging.INFO)
 logger.addHandler(handler)
 
+# Mysql startup info
 mydb=mysql.connector.connect(
   host="localhost",
   user="dmueller",
