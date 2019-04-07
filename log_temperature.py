@@ -9,14 +9,14 @@ import mysql.connector
 import record_SQL_data
 
 # Configs
-time_interval=5*60
+time_interval=1
 brewID=1
 
 # Log file information
 logging.basicConfig(level=logging.DEBUG)
 logger=logging.getLogger(__name__)
 handler=logging.FileHandler(os.getcwd()+"/"+
-			datetime.datetime.now().strftime('temp_log_debug_%H_%M_%d_%m_%Y.log'))
+			datetime.datetime.now().strftime('./logs/temp_log_debug_%H_%M_%d_%m_%Y.log'))
 handler.setLevel(logging.INFO)
 logger.addHandler(handler)
 
@@ -31,7 +31,7 @@ mycursor=mydb.cursor()
 
 # Run main code to check temperature and operate heating/cooling
 logger.info("Running main code...")
-fout=open(datetime.datetime.now().strftime('temp_log_%H_%M_%d_%m_%Y.csv'),'w')
+fout=open(datetime.datetime.now().strftime('./logs/temp_log_%H_%M_%d_%m_%Y.csv'),'w')
 fout.write('time,temperature_air,temperature_liquid')
 fout.write('\n')
 try:
