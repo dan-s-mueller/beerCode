@@ -53,7 +53,7 @@ def remove_from_brew_list(mydb,mycursor,brewIDs):
 		mydb.rollback()
 		print("Issue ocurred when trying to delete record(s).")
 
-def add_to_temp_log(mydb,mycursor,brewID,time,tempAir,tempLiquid):
+def add_to_temp_log(mydb,mycursor,brewID,time,tempAir,tempLiquid,op_hot,op_cold):
 	"""
 	Adds a record to beerCode.brewList.
 	brewID = Integer mapping to brewList
@@ -62,9 +62,9 @@ def add_to_temp_log(mydb,mycursor,brewID,time,tempAir,tempLiquid):
 	tempLiquid = Double value of tempLiquid sensor
 	"""
 	
-	sql = "INSERT INTO beerCode.brewTemperatureHistory (brewID,timeMeasurement,tempAir,tempLiquid) VALUES (%s,%s,%s,%s)"
+	sql = "INSERT INTO beerCode.brewTemperatureHistory (brewID,timeMeasurement,tempAir,tempLiquid,op_hot,op_cold) VALUES (%s,%s,%s,%s,%s,%s)"
 	print(sql)
-	val = (brewID,time,tempAir,tempLiquid)
+	val = (brewID,time,tempAir,tempLiquid,op_hot,op_cold)
 
 	try:
 		mycursor.execute(sql, val)
