@@ -20,7 +20,7 @@ def read_config_file(config_file):
 	return configs
 	
 # Configs
-time_interval=5		# Interval in seconds for when the code runs
+time_interval=15		# Interval in seconds for when the code runs
 brewID=1			# TODO: make this a user input when code runs
 write_to_database=0	# Determines whether or not data written to sql database
 
@@ -36,7 +36,7 @@ logger.addHandler(handler)
 mydb=mysql.connector.connect(
   host="localhost",
   user="dmueller",
-  passwd="Spartan1",
+  passwd="mypwd",
   database="beerCode"
 )
 mycursor=mydb.cursor()
