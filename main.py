@@ -15,14 +15,14 @@ def read_config_file(config_file):
 		configs=[]
 		for line in lines:
 			line=line.split(",")
-			line[0]=int(line[0])
+			line[0]=float(line[0])
 			configs=configs+[line]
 	return configs
 	
 # Configs
 time_interval=15		# Interval in seconds for when the code runs
 brewID=3			# TODO: make this a user input when code runs
-write_to_database=1	# Determines whether or not data written to sql database
+write_to_database=0	# Determines whether or not data written to sql database
 
 # Log file information
 logging.basicConfig(level=logging.DEBUG)
@@ -52,9 +52,9 @@ temperature_settings=read_config_file("./configs/"+temperature_config_file)
 logger.info("Assigning pinouts to relays")
 for idx,pinout in enumerate(pinout_data):
 	if pinout[1]=="relay_cool":
-		relay_cool=pinout[0]
+		relay_cool=int(pinout[0])
 	if pinout[1]=="relay_hot":
-		relay_hot=pinout[0]
+		relay_hot=int(pinout[0])
 logger.debug("relay_cool: "+str(relay_cool))
 logger.debug("relay_hot: "+str(relay_hot))
 
