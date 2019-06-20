@@ -6,7 +6,7 @@ import matplotlib.dates
 import matplotlib.pyplot as plt
 
 # Set up data
-fileName='temp_log_08_13_13_05_2019'
+fileName='second_crack_porter_intermediate'
 temp_air=[]
 temp_liquid=[]
 op_hot=[]

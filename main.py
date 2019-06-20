@@ -21,8 +21,8 @@ def read_config_file(config_file):
 	
 # Configs
 time_interval=15		# Interval in seconds for when the code runs
-brewID=1			# TODO: make this a user input when code runs
-write_to_database=0	# Determines whether or not data written to sql database
+brewID=3			# TODO: make this a user input when code runs
+write_to_database=1	# Determines whether or not data written to sql database
 
 # Log file information
 logging.basicConfig(level=logging.DEBUG)
@@ -36,7 +36,7 @@ logger.addHandler(handler)
 mydb=mysql.connector.connect(
   host="localhost",
   user="dmueller",
-  passwd="mypwd",
+  passwd="Spartan1",
   database="beerCode"
 )
 mycursor=mydb.cursor()
