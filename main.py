@@ -21,8 +21,8 @@ def read_config_file(config_file):
 	
 # Configs
 time_interval=15		# Interval in seconds for when the code runs
-brewID=3			# TODO: make this a user input when code runs
-write_to_database=0	# Determines whether or not data written to sql database
+brewID=4			# TODO: make this a user input when code runs
+write_to_database=1	# Determines whether or not data written to sql database
 
 # Log file information
 logging.basicConfig(level=logging.DEBUG)
@@ -44,9 +44,7 @@ mycursor=mydb.cursor()
 # Read config file settings to establish run parameters.
 logger.info("Reading config file data")
 pinout_config_file="pinout.config"
-temperature_config_file="temperature_settings.config"
 pinout_data=read_config_file("./configs/"+pinout_config_file)
-temperature_settings=read_config_file("./configs/"+temperature_config_file)
 
 # Assign pinouts to relays
 logger.info("Assigning pinouts to relays")
@@ -57,22 +55,6 @@ for idx,pinout in enumerate(pinout_data):
 		relay_hot=int(pinout[0])
 logger.debug("relay_cool: "+str(relay_cool))
 logger.debug("relay_hot: "+str(relay_hot))
-
-# Assign temperature run parameters
-logger.info("Assigning temperature to run parameters")
-for idx,temperature_config in enumerate(temperature_settings):
-	if temperature_config[1]=="setpoint_low":
-		setpoint_low=temperature_config[0]
-	if temperature_config[1]=="setpoint_high":
-		setpoint_high=temperature_config[0]
-	if temperature_config[1]=="trigger_cool":
-		trigger_cool=temperature_config[0]
-	if temperature_config[1]=="trigger_hot":
-		trigger_hot=temperature_config[0]
-logger.debug("setpoint_low: "+str(setpoint_low))
-logger.debug("setpoint_high: "+str(setpoint_high))
-logger.debug("trigger_cool: "+str(trigger_cool))
-logger.debug("trigger_hot: "+str(trigger_hot))
 
 # Configure how the pins are interacted with
 logger.info("Configuring how the pins are interacted with")
@@ -87,6 +69,24 @@ fout.write('time,temperature_air,temperature_liquid,op_hot,op_cold')
 fout.write('\n')
 try:
 	while True:
+		# Assign temperature run parameters
+		temperature_config_file="temperature_settings.config"
+		temperature_settings=read_config_file("./configs/"+temperature_config_file)
+		logger.info("Assigning temperature to run parameters")
+		for idx,temperature_config in enumerate(temperature_settings):
+			if temperature_config[1]=="setpoint_low":
+				setpoint_low=temperature_config[0]
+			if temperature_config[1]=="setpoint_high":
+				setpoint_high=temperature_config[0]
+			if temperature_config[1]=="trigger_cool":
+				trigger_cool=temperature_config[0]
+			if temperature_config[1]=="trigger_hot":
+				trigger_hot=temperature_config[0]
+		logger.debug("setpoint_low: "+str(setpoint_low))
+		logger.debug("setpoint_high: "+str(setpoint_high))
+		logger.debug("trigger_cool: "+str(trigger_cool))
+		logger.debug("trigger_hot: "+str(trigger_hot))
+		
 		timeNow=datetime.datetime.now()
 		temperature_air=temperature_probe.read_temp(0)
 		temperature_liquid=temperature_probe.read_temp(1)
