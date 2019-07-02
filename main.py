@@ -24,10 +24,10 @@ def initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password):
 	logging.basicConfig(level=logging.DEBUG)
 	logger=logging.getLogger(__name__)
 	handler=logging.FileHandler(os.getcwd()+"/"+
-				datetime.datetime.now().strftime("./logs/"+file_name+"%H_%M_%d_%m_%Y.log"))
+				datetime.datetime.now().strftime("./logs/"+file_name+"_%H_%M_%d_%m_%Y.log"))
 	handler.setLevel(logging.INFO)
 	logger.addHandler(handler)
-	print "Logger started: "+"./logs/"+file_name+"%H_%M_%d_%m_%Y.log"
+	print "Logger started: "+"./logs/"+file_name+"_%H_%M_%d_%m_%Y.log"
 
 	# Mysql startup info
 	if database_flag:
@@ -60,87 +60,99 @@ def initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password):
 	GPIO.output([relay_cool,relay_hot], GPIO.LOW) # Initialize all pinouts to off
 	print "Configured pins for I/O"
 	
-	if database_flag:
-		return logger,mydb,mycursor
-	else:
-		return logger
-		return logger
-
-def run_system():
-	# Run main code to check temperature and operate heating/cooling
-	logger.info("Running main code...")
-	fout=open(datetime.datetime.now().strftime('./logs/temp_log_%H_%M_%d_%m_%Y.csv'),'w')
-	fout.write('time,temperature_air,temperature_liquid,op_hot,op_cold')
-	fout.write('\n')
+	# Create csv file if it doesn't exist
+	logger.info("Creating csv file if it doesn't exist")
 	try:
-		while True:
-			# Assign temperature run parameters
-			temperature_config_file="temperature_settings.config"
-			temperature_settings=read_config_file("./configs/"+temperature_config_file)
-			logger.info("Assigning temperature to run parameters")
-			for idx,temperature_config in enumerate(temperature_settings):
-				if temperature_config[1]=="setpoint_low":
-					setpoint_low=temperature_config[0]
-				if temperature_config[1]=="setpoint_high":
-					setpoint_high=temperature_config[0]
-				if temperature_config[1]=="trigger_cool":
-					trigger_cool=temperature_config[0]
-				if temperature_config[1]=="trigger_hot":
-					trigger_hot=temperature_config[0]
-			logger.debug("setpoint_low: "+str(setpoint_low))
-			logger.debug("setpoint_high: "+str(setpoint_high))
-			logger.debug("trigger_cool: "+str(trigger_cool))
-			logger.debug("trigger_hot: "+str(trigger_hot))
+		if os.path.getsize("./logs/"+file_name+".csv") > 0:
+			# Non empty file exists
+			# Read lines, then delete the last one in case it's a weirdo
+			fout=open("./logs/"+file_name+".csv","r+")
+			lines=fout.readlines()
+			lines=lines[:-1]
+			fout.close()
 			
-			timeNow=datetime.datetime.now()
-			temperature_air=temperature_probe.read_temp(0)
-			temperature_liquid=temperature_probe.read_temp(1)
-			logger.info("Current time: "+str(timeNow))
-			logger.info("Current liquid temperature: "+str(temperature_liquid))
-			logger.info("Current outside temperature: "+str(temperature_air))
-			logger.info("Tempearture between setpoints: "+
-							str(temperature_liquid>setpoint_low and temperature_liquid<=setpoint_high))
-			
-			if temperature_liquid<=(setpoint_low+trigger_cool):
-				# Need to heat chamber
-				GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
-				GPIO.output(relay_hot, GPIO.HIGH) # Turn on heater
-				
-				logger.debug("Chamber heating now. Resolving difference of "+
-					str(setpoint_low+trigger_cool-temperature_liquid)+" deg F")
-				if write_to_database:
-					record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid,1,0)
-				fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',1,0')
-				fout.write('\n')
-				
-				time.sleep(time_interval)
-			elif temperature_liquid>=(setpoint_high+trigger_hot):
-				# Need to cool chamber
-				GPIO.output(relay_cool, GPIO.HIGH) # Turn on cooler
-				GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
-				
-				logging.debug("Chamber cooling now. Resolving difference of "+
-					str(setpoint_high+trigger_hot-temperature_liquid)+" deg F")
-				if write_to_database:
-					record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid,0,1)
-				fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',0,1')
-				fout.write('\n')
-				
-				time.sleep(time_interval)
-			else:
-				# Chamber within operational limits, do nothing
-				GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
-				GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
-				
-				logging.debug("Fermenter is in the happy zone, everything's off.")
-				if write_to_database:
-					record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid,0,0)
-				fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',0,0')
-				fout.write('\n')
-				
-				time.sleep(time_interval)
-	finally:
-		fout.close()
-		mydb.close()
-		GPIO.cleanup()
-		print('Program ended, files closed.')
+			# Rewrite the file without the last line
+			fout=open("./logs/"+file_name+".csv",'w')
+			fout.writelines([item for item in lines[:-1]])
+			#fout.close()
+			#fout=open("./logs/"+file_name+".csv","a")
+			#fout.write('time,temperature_air,temperature_liquid,op_hot,op_cold')
+			fout.write('\n')
+		else:
+			# File exists but is empty
+			fout=open("./logs/"+file_name+".csv","w")
+			fout.write('time,temperature_air,temperature_liquid,op_hot,op_cold')
+			fout.write('\n')
+	except:
+		# File doesn't exist
+		fout=open("./logs/"+file_name+".csv","w")
+		fout.write('time,temperature_air,temperature_liquid,op_hot,op_cold')
+		fout.write('\n')
+	
+	if database_flag:
+		return fout,logger,mydb,mycursor
+	else:
+		return fout,logger
+
+def run_system(fout,logger,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,write_to_database,mydb,mycursor):
+	#try:
+		#while True:
+	# Run the main loop of the program
+	logger.debug("setpoint_low: "+str(temp_min))
+	logger.debug("setpoint_high: "+str(temp_max))
+	logger.debug("trigger_cool: "+str(temp_min_tol))
+	logger.debug("trigger_hot: "+str(temp_max_tol))
+	
+	timeNow=datetime.datetime.now()
+	temperature_air=temperature_probe.read_temp(0)
+	temperature_liquid=temperature_probe.read_temp(1)
+	logger.info("Current time: "+str(timeNow))
+	logger.info("Current liquid temperature: "+str(temperature_liquid))
+	logger.info("Current outside temperature: "+str(temperature_air))
+	logger.info("Tempearture between setpoints: "+
+					str(temperature_liquid>temp_min and temperature_liquid<=temp_max))
+	
+	if temperature_liquid<=(temp_min+temp_min_tol):
+		# Need to heat chamber
+		GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
+		GPIO.output(relay_hot, GPIO.HIGH) # Turn on heater
+		
+		logger.debug("Chamber heating now. Resolving difference of "+
+			str(temp_min+temp_min_tol-temperature_liquid)+" deg F")
+		if write_to_database:
+			record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid,1,0)
+		fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',1,0')
+		fout.write('\n')
+		
+		time.sleep(time_interval)
+	elif temperature_liquid>=(temp_max+temp_max_tol):
+		# Need to cool chamber
+		GPIO.output(relay_cool, GPIO.HIGH) # Turn on cooler
+		GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
+		
+		logging.debug("Chamber cooling now. Resolving difference of "+
+			str(temp_max+temp_max_tol-temperature_liquid)+" deg F")
+		if write_to_database:
+			record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid,0,1)
+		fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',0,1')
+		fout.write('\n')
+		
+		time.sleep(time_interval)
+	else:
+		# Chamber within operational limits, do nothing
+		GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
+		GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
+		
+		logging.debug("Fermenter is in the happy zone, everything's off.")
+		if write_to_database:
+			record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid,0,0)
+		fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',0,0')
+		fout.write('\n')
+		
+		time.sleep(time_interval)
+	return fout,temperature_air,temperature_liquid
+	#finally:
+		#fout.close()
+		#mydb.close()
+		#GPIO.cleanup()
+		#print('Program ended, files closed.')
