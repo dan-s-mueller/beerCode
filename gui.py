@@ -2,6 +2,8 @@ from Tkinter import *
 import RPi.GPIO as GPIO
 import mysql.connector
 import ttk
+import time
+import datetime
 import matplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -13,7 +15,65 @@ mydb_global=None
 mycursor_global=None
 logger_global=None
 fout_global=None
+relay_cool_global=None
+relay_hot_global=None
+delay_global=50
+running=False
 
+def scanning():
+	global running, delay_global
+	global fout_global, logger_global, relay_cool_global, relay_hot_global, mydb_global, mycursor_global
+	
+	delay_global=50 # Default to enabling runs every delay seconds unless overwritten by running flag
+	
+	if running:
+		file_name=entry_file_name.get()
+		time_inc=float(entry_time_inc.get())
+		brew_id=int(float(entry_brew_id.get()))
+		database_flag=database_state.get()
+		sql_user=entry_sql_user.get()
+		sql_password=entry_sql_password.get()
+		
+		lbl_status_r.config(fg="green",text="Running, Last Updated: "+ \
+			'{date:%Y-%m-%d, %H:%M:%S}'.format(date=datetime.datetime.now()))
+		
+		# Disable the inputs while running.
+		entry_file_name.config(state="disabled")
+		entry_time_inc.config(state="disabled")
+		entry_brew_id.config(state="disabled")
+		chk_database.config(state="disabled")
+		entry_sql_user.config(state="disabled")
+		entry_sql_password.config(state="disabled")
+		
+		# Temperature settings
+		temp_min=float(entry_temp_min.get())
+		temp_min_tol=float(entry_temp_min_tol.get())
+		temp_max=float(entry_temp_max.get())
+		temp_max_tol=float(entry_temp_max_tol.get())
+		
+		# Initialize the inputs and run the main program
+		if database_state.get():
+			# Initialize and run the system. Will run in infinite loop until interrupted
+			fout_global,logger_global,relay_cool_global,relay_hot_global,mydb_global,mycursor_global= \
+				main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
+			fout_global,temperature_air,temperature_liquid= \
+				main.run_system(fout_global,logger_global,relay_cool_global,relay_hot_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,database_state.get(),mydb_global,mycursor_global)
+			# Show temperatures
+			lbl_temp_air.config(text="Air temp: "+"%.2f" % temperature_air,fg="blue")
+			lbl_temp_liquid.config(text="Liquid temp: "+"%.2f" % temperature_liquid,fg="blue")	
+			#time.sleep(float(entry_time_inc.get()))
+		else:
+			# Initialize and run the system. Will run in infinite loop until interrupted
+			fout_global,logger_global,relay_cool_global,relay_hot_global= \
+					main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
+			fout_global,temperature_air,temperature_liquid= \
+					main.run_system(fout_global,logger_global,relay_cool_global,relay_hot_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,0,0,0)
+			# Show temperatures
+			lbl_temp_air.config(text="Air temp: "+format(temperature_air,".2f"),fg="blue")
+			lbl_temp_liquid.config(text="Liquid temp: "+format(temperature_liquid,".2f"),fg="blue")
+			delay_global=int(float(entry_time_inc.get())*1000)
+	window.after(delay_global, scanning)
+    
 def update_sql_fields():
 	if database_state.get() == 1:          #whenever checked
 		entry_sql_user.config(state=NORMAL)
@@ -22,49 +82,12 @@ def update_sql_fields():
 		entry_sql_user.config(state=DISABLED)
 		entry_sql_password.config(state=DISABLED)
 	
-def run_main():
-	file_name=entry_file_name.get()
-	time_inc=float(entry_time_inc.get())
-	brew_id=int(float(entry_brew_id.get()))
-	database_flag=database_state.get()
-	sql_user=entry_sql_user.get()
-	sql_password=entry_sql_password.get()
+def start_main():
+    # Sets run to true so that scan can execute.
+	global running
+	running=True
 	
-	lbl_status_r.config(fg="green",text="Running")
-	
-	# Disable the inputs while running.
-	entry_file_name.config(state="disabled")
-	entry_time_inc.config(state="disabled")
-	entry_brew_id.config(state="disabled")
-	chk_database.config(state="disabled")
-	entry_sql_user.config(state="disabled")
-	entry_sql_password.config(state="disabled")
-	
-	# Temperature settings
-	temp_min=float(entry_temp_min.get())
-	temp_min_tol=float(entry_temp_min_tol.get())
-	temp_max=float(entry_temp_max.get())
-	temp_max_tol=float(entry_temp_max_tol.get())
-	
-	# Initialize the inputs and run the main program
-	if database_state.get():
-		fout_global,logger_global,mydb_global,mycursor_global= \
-				main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
-		fout_global,temperature_air,temperature_liquid= \
-				main.run_system(fout_global,logger_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,database_state.get(),mydb_global,mycursor_global)
-	else:
-		fout_global,logger_global= \
-				main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
-		fout_global,temperature_air,temperature_liquid= \
-				main.run_system(fout_global,logger_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,0,0,0)
-	
-	# Show temperatures
-	lbl_temp_air.config(text="Air temp: "+str(temperature_air),fg="blue")
-	lbl_temp_liquid.config(text="Air temp: "+str(temperature_liquid),fg="blue")
-	
-	print "doing some stuff..."
-	
-def update_plot():
+def update_plot():    
 	fig=plot_beer_data.csv_plot(entry_file_name.get())
 	plot_canvas=FigureCanvasTkAgg(fig, window)
 	plot_canvas.draw()
@@ -72,18 +95,31 @@ def update_plot():
 	print("Plot refreshed")
 	
 def stop_main():
-	lbl_status_r.config(fg="blue",text="Paused")
+	# Pauses the program but does not close the window
+	global running
+	global fout_global, mydb_global
 	
+	running=False
+	delay_global=50
+
+	lbl_status_r.config(fg="blue",text="Paused"+", Last Updated: "+ \
+			'{date:%Y-%m-%d, %H:%M:%S}'.format(date=datetime.datetime.now()))
+
 	# Enable the inputs after stoppings.
 	entry_file_name.config(state="normal")
 	entry_time_inc.config(state="normal")
 	entry_brew_id.config(state="normal")
 	chk_database.config(state="normal")
-	database_state.set(False) #set check state
 	
+
+	lbl_temp_air.config(text="Air temp: "+"Paused",fg="grey")
+	lbl_temp_liquid.config(text="Air temp: "+"Paused",fg="grey")
+
 	try:
 		fout_global.close()
-		mydb_global.close()
+		if database_state.get():
+			database_state.set(False) #set check state
+			mydb_global.close()
 		GPIO.cleanup()
 		print("Cleanup complete and program stopped.")
 	except Exception as e: 
@@ -92,9 +128,16 @@ def stop_main():
 
 def kill_main():
 	# Cleans up ports but kills window.
+	global running
+	
+	running=False
+	delay_global=50
+
 	try:
 		fout_global.close()
-		mydb_global.close()
+		if database_state.get():
+			database_state.set(False) #set check state
+			mydb_global.close()
 		GPIO.cleanup()
 		print("Cleanup complete and program stopped.")
 	except Exception as e: 
@@ -127,7 +170,7 @@ entry_file_name.grid(row=2,column=1)
 lbl_time_inc=Label(window,text="Time increment (s): ")
 lbl_time_inc.grid(row=3,column=0)
 entry_time_inc=Entry(window,width=30)
-entry_time_inc.insert(END,0)
+entry_time_inc.insert(END,10)
 entry_time_inc.grid(row=3,column=1)
 
 # Brew id
@@ -185,7 +228,7 @@ entry_temp_max_tol.grid(row=90,column=1)
 sep_buttons=ttk.Separator(window, orient="horizontal")
 sep_buttons.grid(row=100,column=0,columnspan=100,sticky="ew")
 
-btn_get_inputs=Button(window,text="Run",command=run_main)
+btn_get_inputs=Button(window,text="Run",command=start_main)
 btn_get_inputs.grid(row=110,column=0)
 btn_quit=Button(window,text="Stop",fg="red",command=stop_main)
 btn_quit.grid(row=120,column=0)
@@ -213,5 +256,6 @@ btn_plot_beer_data=Button(window,text="Plot Beer Data",command=update_plot)
 btn_plot_beer_data.grid(row=530,column=0,columnspan=100)
 
 # Make the window and set close behavior
+window.after(delay_global, scanning)
 window.protocol("WM_DELETE_WINDOW", kill_main)
 window.mainloop()

@@ -90,11 +90,11 @@ def initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password):
 		fout.write('\n')
 	
 	if database_flag:
-		return fout,logger,mydb,mycursor
+		return fout,logger,relay_cool,relay_hot,mydb,mycursor
 	else:
-		return fout,logger
+		return fout,logger,relay_cool,relay_hot
 
-def run_system(fout,logger,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,write_to_database,mydb,mycursor):
+def run_system(fout,logger,relay_cool,relay_hot,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,write_to_database,mydb,mycursor):
 	#try:
 		#while True:
 	# Run the main loop of the program
@@ -149,7 +149,7 @@ def run_system(fout,logger,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol
 		fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',0,0')
 		fout.write('\n')
 		
-		time.sleep(time_interval)
+		#time.sleep(time_interval)
 	return fout,temperature_air,temperature_liquid
 	#finally:
 		#fout.close()
