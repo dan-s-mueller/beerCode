@@ -24,10 +24,10 @@ def initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password):
 	logging.basicConfig(level=logging.DEBUG)
 	logger=logging.getLogger(__name__)
 	handler=logging.FileHandler(os.getcwd()+"/"+
-				datetime.datetime.now().strftime("./logs/"+file_name+"_%H_%M_%d_%m_%Y.log"))
+				datetime.datetime.now().strftime("./logs/"+file_name+".log"))
 	handler.setLevel(logging.INFO)
 	logger.addHandler(handler)
-	print "Logger started: "+"./logs/"+file_name+"_%H_%M_%d_%m_%Y.log"
+	print "Logger started: "+"./logs/"+file_name+".log"
 
 	# Mysql startup info
 	if database_flag:
@@ -82,7 +82,7 @@ def initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password):
 	else:
 		return fout,logger,relay_cool,relay_hot
 
-def run_system(fout,logger,relay_cool,relay_hot,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,write_to_database,mydb,mycursor):
+def run_system(fout,logger,relay_cool,relay_hot,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,brew_id,write_to_database,mydb,mycursor):
 	# Run the main loop of the program
 	logger.debug("setpoint_low: "+str(temp_min))
 	logger.debug("setpoint_high: "+str(temp_max))
@@ -103,36 +103,41 @@ def run_system(fout,logger,relay_cool,relay_hot,file_name,temp_min,temp_min_tol,
 		GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
 		GPIO.output(relay_hot, GPIO.HIGH) # Turn on heater
 		
+		stat_heat=True
+		stat_cool=False
+		
 		logger.debug("Chamber heating now. Resolving difference of "+
 			str(temp_min+temp_min_tol-temperature_liquid)+" deg F")
 		if write_to_database:
-			record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid,1,0)
+			record_SQL_data.add_to_temp_log(mydb,mycursor,brew_id,timeNow,temperature_air,temperature_liquid,1,0)
 		fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',1,0')
 		fout.write('\n')
-		
-		time.sleep(time_interval)
 	elif temperature_liquid>=(temp_max+temp_max_tol):
 		# Need to cool chamber
 		GPIO.output(relay_cool, GPIO.HIGH) # Turn on cooler
 		GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
 		
+		stat_heat=False
+		stat_cool=True
+		
 		logging.debug("Chamber cooling now. Resolving difference of "+
 			str(temp_max+temp_max_tol-temperature_liquid)+" deg F")
 		if write_to_database:
-			record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid,0,1)
+			record_SQL_data.add_to_temp_log(mydb,mycursor,brew_id,timeNow,temperature_air,temperature_liquid,0,1)
 		fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',0,1')
 		fout.write('\n')
-		
-		time.sleep(time_interval)
 	else:
 		# Chamber within operational limits, do nothing
 		GPIO.output(relay_cool, GPIO.LOW) # Turn off cooler, if on
 		GPIO.output(relay_hot, GPIO.LOW) # Turn off heater, if on
 		
+		stat_heat=False
+		stat_cool=False
+		
 		logging.debug("Fermenter is in the happy zone, everything's off.")
 		if write_to_database:
-			record_SQL_data.add_to_temp_log(mydb,mycursor,brewID,timeNow,temperature_air,temperature_liquid,0,0)
+			record_SQL_data.add_to_temp_log(mydb,mycursor,brew_id,timeNow,temperature_air,temperature_liquid,0,0)
 		fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',0,0')
 		fout.write('\n')
 		
-	return fout,temperature_air,temperature_liquid
+	return fout,temperature_air,temperature_liquid,stat_heat,stat_cool

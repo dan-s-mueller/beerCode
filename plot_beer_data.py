@@ -34,6 +34,7 @@ def csv_plot(file_name_in):
 	time = matplotlib.dates.date2num(time)
 	days = matplotlib.dates.DayLocator()
 	days_format=matplotlib.dates.DateFormatter("%D")
+	plt.rcParams.update({'font.size': 8})
 	fig, ax1 = plt.subplots()
 	color = 'black'
 	ax1.set_xlabel('Datetime')
@@ -42,7 +43,7 @@ def csv_plot(file_name_in):
 	# Plot the second axis first, so it's hidden (operational history)
 	ax1.plot_date(time,op_hot,marker='',color='red',linewidth=1,linestyle='solid',label="op_hot")
 	ax1.plot_date(time,op_cold,marker='',color='cyan',linewidth=1,linestyle='solid',label="op_cold")
-	ax1.tick_params(axis='x',labelcolor=color,labelrotation=90)
+	ax1.tick_params(axis='x',labelcolor=color) # labelrotation=90
 	ax1.tick_params(axis='y',labelcolor=color)
 	# Now plot the first axis (temperature)
 	ax2.plot_date(time,temp_air,marker='',color='blue',linewidth=2,linestyle='solid',label="temp_air")
@@ -56,12 +57,14 @@ def csv_plot(file_name_in):
 
 	ax1.yaxis.tick_right()
 	ax2.yaxis.tick_left()
+	ax1.set_ylim((0,1))
 	ax2.set_ylabel('Opeartion',color=color,labelpad=30)
 	ax1.set_ylabel('Temperature (deg F)',color=color,labelpad=30)
 
-	fig.tight_layout()  # otherwise the right y-label is slightly clipped
 	plt.legend(loc=1)
+	ax2.grid(True)
+	
+	plt.tight_layout()
 	plt.savefig('./logs/'+fileName+'.png')
-	#plt.show()
 	
 	return fig

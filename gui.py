@@ -56,22 +56,26 @@ def scanning():
 			# Initialize and run the system. Will run in infinite loop until interrupted
 			fout_global,logger_global,relay_cool_global,relay_hot_global,mydb_global,mycursor_global= \
 				main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
-			fout_global,temperature_air,temperature_liquid= \
-				main.run_system(fout_global,logger_global,relay_cool_global,relay_hot_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,database_state.get(),mydb_global,mycursor_global)
-			# Show temperatures
-			lbl_temp_air.config(text="Air temp: "+"%.2f" % temperature_air,fg="blue")
-			lbl_temp_liquid.config(text="Liquid temp: "+"%.2f" % temperature_liquid,fg="blue")	
-			#time.sleep(float(entry_time_inc.get()))
+			fout_global,temperature_air,temperature_liquid,stat_heat,stat_cool= \
+				main.run_system(fout_global,logger_global,relay_cool_global,relay_hot_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,brew_id,database_state.get(),mydb_global,mycursor_global)
 		else:
 			# Initialize and run the system. Will run in infinite loop until interrupted
 			fout_global,logger_global,relay_cool_global,relay_hot_global= \
 					main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
-			fout_global,temperature_air,temperature_liquid= \
-					main.run_system(fout_global,logger_global,relay_cool_global,relay_hot_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,0,0,0)
-			# Show temperatures
-			lbl_temp_air.config(text="Air temp: "+format(temperature_air,".2f"),fg="blue")
-			lbl_temp_liquid.config(text="Liquid temp: "+format(temperature_liquid,".2f"),fg="blue")
-			delay_global=int(float(entry_time_inc.get())*1000)
+			fout_global,temperature_air,temperature_liquid,stat_heat,stat_cool= \
+					main.run_system(fout_global,logger_global,relay_cool_global,relay_hot_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,brew_id,0,0,0)
+		# Show temperatures and status
+		lbl_temp_air.config(text="Air temp: "+format(temperature_air,".2f"),fg="black")
+		lbl_temp_liquid.config(text="Liquid temp: "+format(temperature_liquid,".2f"),fg="black")	
+		if stat_heat:
+			lbl_heat.config(text="Heater status: "+"On",fg="red")
+		else:
+			lbl_heat.config(text="Heater status: "+"Off",fg="gray")
+		if stat_cool:
+			lbl_cool.config(text="Cooler status: "+"On",fg="blue")
+		else:
+			lbl_cool.config(text="Cooler status: "+"Off",fg="gray")
+		delay_global=int(float(entry_time_inc.get())*1000)
 	window.after(delay_global, scanning)
     
 def update_sql_fields():
@@ -114,6 +118,8 @@ def stop_main():
 
 	lbl_temp_air.config(text="Air temp: "+"Paused",fg="grey")
 	lbl_temp_liquid.config(text="Air temp: "+"Paused",fg="grey")
+	lbl_heat.config(text="Heater status: "+"Off",fg="grey")
+	lbl_cool.config(text="Cooler status: "+"Off",fg="grey")
 
 	try:
 		fout_global.close()
@@ -235,9 +241,13 @@ btn_quit.grid(row=120,column=0)
 
 # Show the temps
 lbl_temp_air=Label(window,text="Air temp: "+"Not running",fg="grey")
-lbl_temp_air.grid(row=110,column=1,columnspan=100)
+lbl_temp_air.grid(row=110,column=1)
 lbl_temp_liquid=Label(window,text="Liquid temp: "+"Not running",fg="grey")
-lbl_temp_liquid.grid(row=120,column=1,columnspan=100)
+lbl_temp_liquid.grid(row=120,column=1)
+lbl_heat=Label(window,text="Heater status: "+"Off",fg="grey")
+lbl_heat.grid(row=110,column=2)
+lbl_cool=Label(window,text="Cooler status: "+"Off",fg="grey")
+lbl_cool.grid(row=120,column=2)
 
 # Status of program
 lbl_status_r=Label(window,text="Initialized",fg="grey",font=("Arial Bold Italic", 10))
@@ -246,7 +256,7 @@ lbl_status_r.grid(row=190,column=0,columnspan=100)
 # Plotting action
 sep_status=ttk.Separator(window, orient="horizontal")
 sep_status.grid(row=500,column=0,columnspan=100,sticky="ew")
-f=Figure(figsize=(1,1), dpi=100)
+f=Figure(figsize=(1,0.75), dpi=100)
 plot_canvas=FigureCanvasTkAgg(f, window)
 plot_canvas.draw()
 plot_canvas.get_tk_widget().grid(row=520,column=0,columnspan=100)
