@@ -65,19 +65,7 @@ def initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password):
 	try:
 		if os.path.getsize("./logs/"+file_name+".csv") > 0:
 			# Non empty file exists
-			# Read lines, then delete the last one in case it's a weirdo
-			fout=open("./logs/"+file_name+".csv","r+")
-			lines=fout.readlines()
-			lines=lines[:-1]
-			fout.close()
-			
-			# Rewrite the file without the last line
-			fout=open("./logs/"+file_name+".csv",'w')
-			fout.writelines([item for item in lines[:-1]])
-			#fout.close()
-			#fout=open("./logs/"+file_name+".csv","a")
-			#fout.write('time,temperature_air,temperature_liquid,op_hot,op_cold')
-			fout.write('\n')
+			fout=open("./logs/"+file_name+".csv","a")
 		else:
 			# File exists but is empty
 			fout=open("./logs/"+file_name+".csv","w")
@@ -95,8 +83,6 @@ def initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password):
 		return fout,logger,relay_cool,relay_hot
 
 def run_system(fout,logger,relay_cool,relay_hot,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,write_to_database,mydb,mycursor):
-	#try:
-		#while True:
 	# Run the main loop of the program
 	logger.debug("setpoint_low: "+str(temp_min))
 	logger.debug("setpoint_high: "+str(temp_max))
@@ -149,10 +135,4 @@ def run_system(fout,logger,relay_cool,relay_hot,file_name,temp_min,temp_min_tol,
 		fout.write(str(timeNow)+','+str(temperature_air)+','+str(temperature_liquid)+',0,0')
 		fout.write('\n')
 		
-		#time.sleep(time_interval)
 	return fout,temperature_air,temperature_liquid
-	#finally:
-		#fout.close()
-		#mydb.close()
-		#GPIO.cleanup()
-		#print('Program ended, files closed.')
