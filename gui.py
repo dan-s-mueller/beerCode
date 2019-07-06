@@ -18,15 +18,44 @@ fout_global=None
 relay_cool_global=None
 relay_hot_global=None
 delay_global=50
+is_initializing_global=True
 running=False
 
 def scanning():
-	global running, delay_global
+	global running, delay_global, is_initializing_global
 	global fout_global, logger_global, relay_cool_global, relay_hot_global, mydb_global, mycursor_global
 	
-	delay_global=50 # Default to enabling runs every delay seconds unless overwritten by running flag
-	
-	if running:
+	if (not running) and (not is_initializing_global):
+		# do something after request to stop has been received
+		lbl_status_r.config(fg="blue",text="Paused, Last Updated: "+ \
+			'{date:%Y-%m-%d, %H:%M:%S}'.format(date=datetime.datetime.now()))
+		
+		# Enable the inputs after stoppings.
+		entry_file_name.config(state="normal")
+		entry_time_inc.config(state="normal")
+		entry_brew_id.config(state="normal")
+		chk_database.config(state="normal")
+		
+
+		lbl_temp_air.config(text="Air temp: "+"Paused",fg="grey")
+		lbl_temp_liquid.config(text="Air temp: "+"Paused",fg="grey")
+		lbl_heat.config(text="Heater status: "+"Off",fg="grey")
+		lbl_cool.config(text="Cooler status: "+"Off",fg="grey")
+		
+		is_initializing_global=True
+		delay_global=50
+
+		try:
+			fout_global.close()
+			if database_state.get():
+				database_state.set(False) #set check state
+				mydb_global.close()
+			GPIO.cleanup()
+			print("Cleanup complete and program stopped.")
+		except Exception as e: 
+			print e
+			print("Cleanup had errors but program stopped.")
+	elif running:
 		file_name=entry_file_name.get()
 		time_inc=float(entry_time_inc.get())
 		brew_id=int(float(entry_brew_id.get()))
@@ -54,14 +83,20 @@ def scanning():
 		# Initialize the inputs and run the main program
 		if database_state.get():
 			# Initialize and run the system. Will run in infinite loop until interrupted
-			fout_global,logger_global,relay_cool_global,relay_hot_global,mydb_global,mycursor_global= \
-				main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
+			if is_initializing_global:
+				fout_global,logger_global,relay_cool_global,relay_hot_global,mydb_global,mycursor_global= \
+					main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
+				is_initializing_global=False
+				print "Main program initialized."
 			fout_global,temperature_air,temperature_liquid,stat_heat,stat_cool= \
 				main.run_system(fout_global,logger_global,relay_cool_global,relay_hot_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,brew_id,database_state.get(),mydb_global,mycursor_global)
 		else:
 			# Initialize and run the system. Will run in infinite loop until interrupted
-			fout_global,logger_global,relay_cool_global,relay_hot_global= \
-					main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
+			if is_initializing_global:
+				fout_global,logger_global,relay_cool_global,relay_hot_global= \
+						main.initialize(file_name,time_inc,brew_id,database_flag,sql_user,sql_password)
+				is_initializing_global=False
+				print "Main program initialized."
 			fout_global,temperature_air,temperature_liquid,stat_heat,stat_cool= \
 					main.run_system(fout_global,logger_global,relay_cool_global,relay_hot_global,file_name,temp_min,temp_min_tol,temp_max,temp_max_tol,brew_id,0,0,0)
 		# Show temperatures and status
@@ -101,36 +136,11 @@ def update_plot():
 def stop_main():
 	# Pauses the program but does not close the window
 	global running
-	global fout_global, mydb_global
 	
 	running=False
-	delay_global=50
 
-	lbl_status_r.config(fg="blue",text="Paused"+", Last Updated: "+ \
+	lbl_status_r.config(fg="red",text="Request to stop received: "+ \
 			'{date:%Y-%m-%d, %H:%M:%S}'.format(date=datetime.datetime.now()))
-
-	# Enable the inputs after stoppings.
-	entry_file_name.config(state="normal")
-	entry_time_inc.config(state="normal")
-	entry_brew_id.config(state="normal")
-	chk_database.config(state="normal")
-	
-
-	lbl_temp_air.config(text="Air temp: "+"Paused",fg="grey")
-	lbl_temp_liquid.config(text="Air temp: "+"Paused",fg="grey")
-	lbl_heat.config(text="Heater status: "+"Off",fg="grey")
-	lbl_cool.config(text="Cooler status: "+"Off",fg="grey")
-
-	try:
-		fout_global.close()
-		if database_state.get():
-			database_state.set(False) #set check state
-			mydb_global.close()
-		GPIO.cleanup()
-		print("Cleanup complete and program stopped.")
-	except Exception as e: 
-		print e
-		print("Cleanup had errors but program stopped.")
 
 def kill_main():
 	# Cleans up ports but kills window.
@@ -176,7 +186,7 @@ entry_file_name.grid(row=2,column=1)
 lbl_time_inc=Label(window,text="Time increment (s): ")
 lbl_time_inc.grid(row=3,column=0)
 entry_time_inc=Entry(window,width=30)
-entry_time_inc.insert(END,10)
+entry_time_inc.insert(END,60)
 entry_time_inc.grid(row=3,column=1)
 
 # Brew id
